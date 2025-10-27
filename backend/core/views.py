@@ -14,11 +14,11 @@ import os
 from django.conf import settings
 from django.db.models import Count, Avg, Q, FloatField
 core_router = Router()
+from core.ml.modelvoice import predict_voice_file 
+import subprocess
 
 
-MODEL_PATH = os.path.join(settings.BASE_DIR, "core", "ml_model", "car_price_model.pkl")
-with open(MODEL_PATH, "rb") as f:
-    model = pickle.load(f)
+
 
 # if hasattr(model, 'named_steps'):
 #     print("pipeline steps:", model.named_steps.keys())
@@ -58,50 +58,125 @@ def health_check(request):
 
 @core_router.post("/media-upload", auth=JWTAuth())
 def media_upload(request, media_type: str = Form(...), file: UploadedFile = File(...)):
-
+    """
+    Handles upload and routes to correct ML model (audio/video/image).
+    For video, extracts audio and uses voice deepfake model.
+    """
     session = Session.objects.create(
         user=request.user,
         media_type=media_type,
         input_media=file,
-        status="pending",
-        processed_media=file
+        status="processing",
     )
 
+    temp_dir = os.path.join(settings.MEDIA_ROOT, "temp")
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_path = os.path.join(temp_dir, file.name)
+
+    try:
+        # Save uploaded file locally
+        with open(temp_path, "wb") as temp_file:
+            for chunk in file.chunks():
+                temp_file.write(chunk)
+
+        # AUDIO 🟢
+        if media_type == "audio":
+            prediction = predict_voice_file(temp_path)
+            result_data = {
+                "is_deepfake": True if prediction["label"] == "fake" else False,
+                "final_confidence": round(float(prediction["probability"]), 3),
+                "raw_output": prediction["raw"].tolist() if hasattr(prediction["raw"], "tolist") else prediction["raw"],
+                "model_used": "Voice Deepfake Model v2",
+            }
+
+        elif media_type == "video":
+            audio_path = os.path.splitext(temp_path)[0] + "_audio.wav"
+
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", temp_path,
+                "-vn",  
+                "-acodec", "pcm_s16le",  
+                "-ar", "22050",         
+                "-ac", "1",              
+                audio_path
+            ]
+            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+
+            # Predict using the extracted audio
+            prediction = predict_voice_file(audio_path)
+            result_data = {
+                "is_deepfake": True if prediction["label"] == "fake" else False,
+                "final_confidence": round(float(prediction["probability"]), 3),
+                "raw_output": prediction["raw"].tolist() if hasattr(prediction["raw"], "tolist") else prediction["raw"],
+                "model_used": "Video (Audio Extract) Deepfake Model v2",
+            }
+
+            if os.path.exists(audio_path):
+                os.remove(audio_path)
+
+        # IMAGE 🖼️
+        elif media_type == "image":
+            result_data = {
+                "is_deepfake": False,
+                "final_confidence": 0.76,
+                "model_used": "Image Authenticity Detector (coming soon)",
+            }
+
+        else:
+            session.status = "failed"
+            session.result_data = {"error": "Invalid media_type"}
+            session.save()
+            os.remove(temp_path)
+            return {"detail": "Invalid media_type"}, 400
+
+        # Save results
+        session.status = "completed"
+        session.result_data = result_data
+        session.save()
+
+    except subprocess.CalledProcessError as fferr:
+        session.status = "failed"
+        session.result_data = {"error": f"FFmpeg failed: {fferr.stderr.decode()}"}
+        session.save()
+        return {"message": "Audio extraction failed", "error": str(fferr)}, 500
+
+    except Exception as e:
+        session.status = "failed"
+        session.result_data = {"error": str(e)}
+        session.save()
+        return {"message": "Error processing media", "error": str(e)}, 500
+
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
     return {
-        "message": "File uploaded successfully",
+        "message": "Media processed successfully",
         "session_id": session.id,
         "media_type": session.media_type,
         "media_url": session.input_media.url,
         "status": session.status,
+        "result_data": session.result_data,
     }
+
+
 
 @core_router.get("/show-result", auth=JWTAuth())
 def show_result(request, session_id: int):
     session = get_object_or_404(Session, id=session_id, user=request.user)
 
+    result_data = session.result_data or {}
+
     return {
         "session_id": session.id,
-        "status": 'completed',
+        "status": session.status,
         "media_type": session.media_type,
         "input_media": session.input_media.url if session.input_media else None,
         "processed_media": session.processed_media.url if session.processed_media else None,
-        "result_data": session.result_data or None,
+        "result_data": result_data,
         "created_at": session.created_at.isoformat(),
         "updated_at": session.updated_at.isoformat(),
-        "result_data": {
-            "is_deepfake": False,
-            "final_confidence": 0.87,
-            "scores": {
-                "Video Model": 0.82,
-                "Audio Model": 0.91,
-            },
-            "temporal_data": [
-                {"start": 0, "end": 15, "confidence": 0.72},
-                {"start": 15, "end": 30, "confidence": 0.88},
-                {"start": 30, "end": 45, "confidence": 0.93},
-                {"start": 45, "end": 60, "confidence": 0.81},
-            ],
-        },
     }
 
 

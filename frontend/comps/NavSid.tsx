@@ -90,6 +90,7 @@ export default function NavSid({ children }: NavSidProps) {
 
   const sidebarLinks = isAuth
     ? [
+
         { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { name: "My History", href: "/history", icon: History },
         { name: "Deepfake Detection", href: "/upload", icon: Scan },
@@ -317,7 +318,7 @@ export default function NavSid({ children }: NavSidProps) {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 p-4 sm:p-6 bg-[#070708] overflow-y-auto" role="main">
+        <main className="flex-1  bg-[#070708] overflow-y-auto" role="main">
           {children}
         </main>
       </div>

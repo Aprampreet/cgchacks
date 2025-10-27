@@ -63,7 +63,6 @@ export default function VideoPreview({ videoUrl, temporalData }: VideoPreviewPro
           className="w-full rounded-xl border border-neutral-800"
         />
 
-        {/* 🔮 Floating Confidence Tag */}
         <AnimatePresence>
           {currentConfidence !== null && (
             <motion.div
