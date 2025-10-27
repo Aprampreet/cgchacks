@@ -88,4 +88,11 @@ export const extensionScan = async (url: string, mediaType: string) => {
   const res = await axiosInstance.post("core/extension-scan", { url, media_type: mediaType });
   return res.data;
 }
+
+export const getDashboard = async () =>{
+  const res = await axiosInstance.get('core/dashboard');
+  return res.data;
+
+}
+
 export default axiosInstance;

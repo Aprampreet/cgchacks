@@ -1,10 +1,24 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect, ReactNode } from "react";
-import { Menu, X, ChevronDown } from "lucide-react";
+import {
+  Menu,
+  X,
+  ChevronDown,
+  LogOut,
+  LayoutDashboard,
+  History,
+  Scan,
+  Newspaper,
+  Users,
+  HelpCircle,
+  Info,
+  Phone,
+  FileText,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 interface NavSidProps {
   children: ReactNode;
@@ -14,9 +28,9 @@ export default function NavSid({ children }: NavSidProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-
   const { isAuth, user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const updateView = () => setIsMobile(window.innerWidth < 640);
@@ -26,32 +40,27 @@ export default function NavSid({ children }: NavSidProps) {
   }, []);
 
   const handleLogout = async () => {
-    await logout();             
-    setShowDropdown(false);    
-    router.push("/login");     
+    await logout();
+    setShowDropdown(false);
+    router.push("/login");
   };
 
   const sidebarLinks = isAuth
     ? [
-        { name: "Dashboard", href: "/" },
-        { name: "My History", href: "/history" },
-        { name: "Deepfake Detection", href: "/upload" },
-        { name: "Team", href: "/team" },
-        { name: "Settings", href: "/settings" },
-        { name: "Help", href: "/help" },
+        { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+        { name: "My History", href: "/history", icon: History },
+        { name: "Deepfake Detection", href: "/upload", icon: Scan },
+        { name: "News", href: "/news", icon: Newspaper },
+        { name: "Team", href: "/team", icon: Users },
+        { name: "Help", href: "/help", icon: HelpCircle },
       ]
-    : [{ name: "Help", href: "/help" },
-      { name: "About", href: "/about" },
-      { name: "Contact", href: "/contact" },
-      
-    ];
+    : [
+        { name: "Help", href: "/help", icon: HelpCircle },
+        { name: "About", href: "/about", icon: Info },
+        { name: "Contact", href: "/contact", icon: Phone },
+      ];
 
-  const navbarLinks = isAuth
-    ? [
-        { name: "Docs", href: "/docs" },
-        { name: "Contact", href: "/contact" },
-      ]
-    : [{ name: "Docs", href: "/docs" }];
+  const navbarLinks = [{ name: "Docs", href: "/docs", icon: FileText }];
 
   const dropdownLinks = isAuth
     ? [
@@ -65,49 +74,80 @@ export default function NavSid({ children }: NavSidProps) {
       ];
 
   return (
-    <div className="flex min-h-screen bg-neutral-950 text-white">
+    <div className="flex min-h-screen bg-[#070708] text-white font-inter">
+      {/* Mobile overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 sm:hidden"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-30 sm:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
 
+      {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 p-5 transition-transform duration-300 backdrop-blur-lg bg-white/5 border-r border-white/10 z-40
+        className={`fixed top-0 left-0 h-full w-64 flex flex-col justify-between transition-all duration-300 ease-in-out z-40
+          bg-gradient-to-b from-[#101012] to-[#070708] border-r border-white/10 shadow-[0_0_30px_rgba(0,255,255,0.05)]
           ${isOpen ? "translate-x-0" : "-translate-x-full"} sm:translate-x-0`}
       >
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-semibold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-            Dashboard
-          </h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="sm:hidden hover:bg-white/10"
-            onClick={() => setIsOpen(false)}
-          >
-            <X size={22} />
-          </Button>
-        </div>
-
-        <nav className="flex flex-col gap-2">
-          {sidebarLinks.map((link) => (
-            <Link
-              key={link.name}
-              href={link.href}
-              className="p-3 hover:rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition-all border-b border-neutral-800"
-              onClick={() => isMobile && setIsOpen(false)}
+        <div className="flex flex-col h-full p-6">
+          {/* Logo */}
+          <div className="flex items-center justify-between mb-10">
+            <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 bg-clip-text text-transparent animate-pulse-slow">
+              DeepVision
+            </h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="sm:hidden hover:bg-white/10"
+              onClick={() => setIsOpen(false)}
             >
-              {link.name}
-              
-            </Link>
-          ))}
-        </nav>
+              <X size={22} />
+            </Button>
+          </div>
+
+          {/* Links */}
+          <nav className="flex flex-col gap-2">
+            {sidebarLinks.map(({ name, href, icon: Icon }) => {
+              const active = pathname === href;
+              return (
+                <Link
+                  key={name}
+                  href={href}
+                  onClick={() => isMobile && setIsOpen(false)}
+                  className={`group flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all relative
+                    ${
+                      active
+                        ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-[0_0_15px_rgba(0,255,255,0.2)]"
+                        : "text-gray-400 hover:text-white hover:bg-white/10"
+                    }`}
+                >
+                  <Icon
+                    size={18}
+                    className={`transition-transform duration-300 ${
+                      active
+                        ? "text-white scale-110"
+                        : "text-gray-400 group-hover:text-cyan-400 group-hover:scale-110"
+                    }`}
+                  />
+                  <span>{name}</span>
+                  {active && (
+                    <span className="absolute right-2 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#06b6d4]" />
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="mt-auto text-xs text-gray-500 border-t border-white/10 pt-4">
+            <p>© 2025 DeepVision Labs</p>
+          </div>
+        </div>
       </aside>
 
-      <div className="flex-1 flex flex-col sm:ml-64">
-        <header className="flex items-center justify-between px-6 py-4 backdrop-blur-md bg-white/5 border-b border-white/10 sticky top-0 z-30">
+      {/* Main */}
+      <div className="flex-1 flex flex-col sm:ml-64 transition-all">
+        {/* Navbar */}
+        <header className="flex items-center justify-between px-6 py-3 sticky top-0 backdrop-blur-2xl bg-[#0c0c0e]/80 border-b border-white/10 z-30 shadow-[0_0_20px_rgba(0,255,255,0.05)]">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -117,60 +157,58 @@ export default function NavSid({ children }: NavSidProps) {
             >
               <Menu size={22} />
             </Button>
-            <h1 className="text-lg font-semibold">Welcome</h1>
+            <h1 className="text-base font-medium text-gray-300">
+              {isAuth && user ? `Welcome, ${user.username}` : "Welcome"}
+            </h1>
           </div>
 
-          <div className="relative flex items-center gap-4">
-            {/* Navbar links */}
-            {navbarLinks.map((link) => (
+          {/* Right */}
+          <div className="flex items-center gap-4">
+            {navbarLinks.map(({ name, href, icon: Icon }) => (
               <Link
-                key={link.name}
-                href={link.href}
-                className="hidden sm:block rounded-lg text-gray-300 hover:text-white hover:bg-white/10 p-2 transition-all"
+                key={name}
+                href={href}
+                className="hidden sm:flex items-center gap-1 text-sm text-gray-400 hover:text-white px-3 py-2 rounded-md hover:bg-white/10 transition-all"
               >
-                {link.name}
+                <Icon size={16} />
+                {name}
               </Link>
             ))}
 
-            <div className="relative p-2 bg-neutral-100 border border-cyan-700 rounded-lg cursor-pointer hover:bg-neutral-200 transition-all">
+            {/* Dropdown */}
+            <div className="relative">
               <div
-                className="text-white hover:text-black flex items-center gap-2"
                 onClick={() => setShowDropdown((prev) => !prev)}
+                className="flex items-center gap-2 cursor-pointer select-none rounded-full bg-[#111113] border border-cyan-700/50 px-3 py-1.5 hover:border-cyan-400/70 hover:shadow-[0_0_10px_rgba(6,182,212,0.4)] transition-all"
               >
-                {isAuth && user ? (
-                  <>
-                    <img
-                      src={user.avatar_url || "/default-avatar.png"}
-                      alt="avatar"
-                      className="w-7 h-7 rounded-full object-cover border border-cyan-400 "
-                    />
-                    <span className="capitalize text-gray-800">{user.username}</span>
-                    <ChevronDown size={16}  />
-                  </>
-                ) : (
-                  <>
-                    <span className="capitalize text-gray-800  ">Login</span>
-                    <ChevronDown size={16} color="black"/>
-                  </>
-                )}
+                <img
+                  src={user?.avatar_url || "/default-avatar.png"}
+                  alt="avatar"
+                  className="w-8 h-8 rounded-full object-cover border border-cyan-500 shadow-[0_0_10px_#06b6d4]"
+                />
+                <span className="text-sm text-gray-200 capitalize">
+                  {user?.username || "Guest"}
+                </span>
+                <ChevronDown size={14} className="text-gray-400" />
               </div>
 
               {showDropdown && (
-                <div className="absolute right-0 mt-2 w-40 bg-neutral-900 border border-neutral-700 rounded-lg shadow-lg z-40">
+                <div className="absolute right-0 mt-3 w-44 bg-[#101012] border border-white/10 rounded-md shadow-[0_0_20px_rgba(0,255,255,0.1)] z-40 overflow-hidden animate-in fade-in-80 scale-in-95">
                   {dropdownLinks.map((item) =>
                     item.name === "Logout" ? (
                       <button
                         key={item.name}
                         onClick={item.onClick}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-neutral-800 hover:text-white rounded-lg"
+                        className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-cyan-500/10 hover:text-cyan-300 transition-all"
                       >
+                        <LogOut size={14} />
                         {item.name}
                       </button>
                     ) : (
                       <Link
                         key={item.name}
                         href={item.href!}
-                        className="block px-4 py-2 text-sm text-gray-300 hover:bg-neutral-800 hover:text-white rounded-lg"
+                        className="block px-4 py-2 text-sm text-gray-300 hover:bg-cyan-500/10 hover:text-cyan-300 transition-all"
                         onClick={() => setShowDropdown(false)}
                       >
                         {item.name}
@@ -183,7 +221,10 @@ export default function NavSid({ children }: NavSidProps) {
           </div>
         </header>
 
-        <main className="p-6 flex-1 overflow-y-auto">{children}</main>
+        {/* Main Content */}
+        <main className="flex-1 p-6 bg-[#070708] overflow-y-auto">
+          {children}
+        </main>
       </div>
     </div>
   );

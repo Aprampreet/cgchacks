@@ -10,9 +10,11 @@ import numpy as np
 import pandas as pd
 import requests
 from django.core.files.uploadedfile import SimpleUploadedFile
-core_router = Router()
 import os
 from django.conf import settings
+from django.db.models import Count, Avg, Q, FloatField
+core_router = Router()
+
 
 MODEL_PATH = os.path.join(settings.BASE_DIR, "core", "ml_model", "car_price_model.pkl")
 with open(MODEL_PATH, "rb") as f:
@@ -164,3 +166,50 @@ def extension_scan(request,data:ExtensionIn):
             "confidence": 0.90
         }
 
+@core_router.get('/dashboard',auth=JWTAuth())
+def dashboard(request):
+    user = request.user
+    sessions = Session.objects.filter(user=user)
+    if not sessions.exists():
+        return {"message": "No scans yet", "stats": {}, "recent_scans": []}
+    
+    total_scans = sessions.count()
+    media_type_counts = (
+        sessions.values("media_type")
+        .annotate(count=Count("id"))
+        .order_by("media_type")
+    )
+    status_counts = (
+        sessions.values("status")
+        .annotate(count=Count("id"))
+        .order_by("status")
+    )
+    confidences = []
+    for s in sessions:
+        if s.result_data and isinstance(s.result_data, dict):
+            conf = s.result_data.get("final_confidence")
+            if conf is not None:
+                confidences.append(float(conf))
+    avg_confidence = round(sum(confidences) / len(confidences), 2) if confidences else None
+
+    recent_scans = [
+        {
+            "session_id": s.id,
+            "media_type": s.media_type,
+            "status": s.status,
+            "final_confidence": s.result_data.get("final_confidence") if s.result_data else None,
+            "created_at": s.created_at.isoformat(),
+        }
+        for s in sessions.order_by("-created_at")[:5]
+    ]
+
+    return {
+        "message": "Dashboard data fetched successfully",
+        "stats": {
+            "total_scans": total_scans,
+            "by_media_type": {m["media_type"]: m["count"] for m in media_type_counts},
+            "by_status": {s["status"]: s["count"] for s in status_counts},
+            "average_confidence": avg_confidence,
+        },
+        "recent_scans": recent_scans,
+    }
