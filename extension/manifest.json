@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Extension AI Media Scanner",
+  "version": "1.1",
+  "description": "Check if an image, video, or audio is real or deepfake using AI.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "128": "icons/icon128.png"
+    }
+  }
+}
