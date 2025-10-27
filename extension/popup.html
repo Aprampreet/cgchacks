@@ -1,67 +1,164 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <title>AI Media Scanner</title>
-  <style>
-    body {
-      font-family: system-ui, sans-serif;
-      width: 320px;
-      padding: 16px;
-      background: #0f172a;
-      color: white;
-      text-align: center;
-    }
-    input {
-      width: 100%;
-      padding: 8px;
-      border-radius: 8px;
-      border: none;
-      margin-top: 10px;
-    }
-    select {
-      width: 100%;
-      padding: 8px;
-      border-radius: 8px;
-      margin-top: 8px;
-      background: #1e293b;
-      color: white;
-      border: none;
-    }
-    button {
-      width: 100%;
-      margin-top: 12px;
-      padding: 8px;
-      background: #2563eb;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 600;
-    }
-    button:disabled {
-      background: #475569;
-      cursor: not-allowed;
-    }
-    #result {
-      margin-top: 16px;
-      font-weight: bold;
-      padding: 10px;
-      border-radius: 8px;
-    }
-  </style>
-</head>
-<body>
-  <h3>🧠 Extension AI Scanner</h3>
-  <p style="font-size: 14px; color: #94a3b8;">Paste image, video, or audio URL below:</p>
-  <input id="urlInput" type="text" placeholder="https://example.com/image.jpg" />
-  <select id="mediaType">
-    <option value="image">Image</option>
-    <option value="video">Video</option>
-    <option value="audio">Audio</option>
-  </select>
-  <button id="scanBtn">Scan Now</button>
-  <div id="result"></div>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>AI Media Scanner</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card-bg: #1e293b;
+        --accent: #00ff9d; /* Neon green accent */
+        --accent-hover: #00cc7d;
+        --text: #f8fafc;
+        --error: #ef4444;
+        --success: #22c55e;
+        --warn: #facc15;
+        --border-color: #334155;
+        --shadow-color: rgba(0, 0, 0, 0.3);
+      }
 
-  <script src="popup.js"></script>
-</body>
+      body {
+        margin: 0;
+        width: 320px;
+        height: 400px;
+        background: var(--bg);
+        color: var(--text);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 4px 15px var(--shadow-color);
+        font-family: "Inter", sans-serif;
+      }
+
+      h2 {
+        text-align: center;
+        margin: 0 0 20px;
+        font-size: 22px;
+        color: var(--accent);
+        letter-spacing: 0.5px;
+        text-shadow: 0 0 8px rgba(0, 255, 157, 0.3);
+      }
+
+      input,
+      select,
+      button {
+        width: 100%;
+        padding: 12px;
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+        outline: none;
+        margin-bottom: 12px;
+        font-size: 15px;
+        transition: all 0.2s ease;
+      }
+
+      input,
+      select {
+        background: var(--card-bg);
+        color: var(--text);
+      }
+
+      input:focus,
+      select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 5px var(--accent);
+        background: #273449;
+      }
+
+      button {
+        background: var(--accent);
+        color: #0f172a;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(0, 255, 157, 0.3);
+        transition: all 0.25s ease-in-out;
+      }
+
+      button:hover {
+        background: var(--accent-hover);
+        box-shadow: 0 0 18px rgba(0, 255, 157, 0.5);
+        transform: translateY(-1px);
+      }
+
+      button:disabled {
+        background: #475569;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+        opacity: 0.8;
+      }
+
+      #result {
+        display: none;
+        margin-top: 15px;
+        text-align: center;
+        padding: 12px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      .success {
+        background: rgba(34, 197, 94, 0.15);
+        border: 1px solid var(--success);
+        color: var(--success);
+      }
+      .error {
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid var(--error);
+        color: var(--error);
+      }
+      .warn {
+        background: rgba(250, 204, 21, 0.15);
+        border: 1px solid var(--warn);
+        color: var(--warn);
+      }
+      .loading {
+        color: var(--accent);
+        font-style: italic;
+      }
+
+      footer {
+        text-align: center;
+        font-size: 12px;
+        opacity: 0.8;
+        padding-top: 10px;
+        border-top: 1px solid var(--border-color);
+      }
+
+      footer a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 500;
+        transition: 0.2s;
+      }
+
+      footer a:hover {
+        color: var(--accent-hover);
+        text-shadow: 0 0 8px rgba(0, 255, 157, 0.4);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div>
+      <h2>AI Media Scanner</h2>
+      <input id="urlInput" type="text" placeholder="Paste media URL..." />
+      <select id="mediaType">
+        <option value="image">Image</option>
+        <option value="video">Video</option>
+        <option value="audio">Audio</option>
+      </select>
+      <button id="scanBtn">🚀 Scan</button>
+      <div id="result"></div>
+    </div>
+
+    <footer>
+      Built by <a href="https://yourwebsite.com" target="_blank">Apram Judge</a>
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
 </html>

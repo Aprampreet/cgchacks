@@ -204,7 +204,6 @@ export default function ReportPage() {
                   </div>
                 ))}
 
-                {/* 🎬 Show Video Preview only for video */}
                 {session.media_type === "video" && (
                   <VideoPreview
                     videoUrl={session.processed_media}

@@ -10,6 +10,7 @@ interface UserProfile {
 interface AuthContextType {
   isAuth: boolean;
   user: UserProfile | null;
+  loading: boolean; // ✅ new
   login: (access: string, refresh: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -19,11 +20,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuth, setIsAuth] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true); // ✅ new
 
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem("access");
-      if (!token) return;
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
       try {
         const profile = await fetchProfile();
@@ -34,6 +39,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem("refresh");
         setIsAuth(false);
         setUser(null);
+      } finally {
+        setLoading(false); // ✅ stop loading after attempt
       }
     };
     initAuth();
@@ -70,7 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuth, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuth, user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

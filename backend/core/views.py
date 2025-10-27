@@ -64,6 +64,7 @@ def media_upload(request, media_type: str = Form(...), file: UploadedFile = File
         media_type=media_type,
         input_media=file,
         status="pending",
+        processed_media=file
     )
 
     return {
