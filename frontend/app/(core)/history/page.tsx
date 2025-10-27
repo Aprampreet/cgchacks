@@ -6,10 +6,11 @@ import {
   Clock,
   Database,
   Loader2,
-  ListOrdered,
   CheckCircle,
   XCircle,
   AlertCircle,
+  FileType,
+  TrendingUp,
 } from "lucide-react";
 import {
   Card,
@@ -25,7 +26,7 @@ interface SessionHistoryItem {
   session_id: number;
   media_type: string;
   media_url: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: "pending" | "processing" | "completed" | "failed";
   processed_media: string | null;
   result_data: {
     is_deepfake: boolean;
@@ -35,69 +36,85 @@ interface SessionHistoryItem {
   updated_at: string;
 }
 
+const STATUS_CONFIG = {
+  completed: { icon: CheckCircle, color: "text-green-500", badge: "bg-green-600" },
+  failed: { icon: XCircle, color: "text-red-500", badge: "bg-red-600" },
+  processing: { icon: Loader2, color: "text-cyan-400", badge: "bg-cyan-600", spin: true },
+  pending: { icon: Clock, color: "text-yellow-500", badge: "bg-yellow-600" },
+};
 
 const SessionCard = ({ session }: { session: SessionHistoryItem }) => {
   const router = useRouter();
-
-  const getStatusIcon = () => {
-    switch (session.status) {
-      case "completed": return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case "failed": return <AlertCircle className="w-5 h-5 text-red-500" />;
-      case "processing": return <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />;
-      default: return <Clock className="w-5 h-5 text-yellow-500" />;
-    }
-  };
-
-  const getStatusBadgeClass = () => {
-    switch (session.status) {
-      case "completed": return "bg-green-600 hover:bg-green-700";
-      case "failed": return "bg-red-600 hover:bg-red-700";
-      case "processing": return "bg-cyan-600 hover:bg-cyan-700 animate-pulse";
-      default: return "bg-yellow-600 hover:bg-yellow-700";
-    }
-  };
+  const status = STATUS_CONFIG[session.status];
+  const Icon = status.icon;
 
   const getResultText = () => {
-    if (session.status !== 'completed' || !session.result_data) return "Analysis incomplete";
-    const confidence = (session.result_data.final_confidence * 100).toFixed(1);
-    const color = session.result_data.is_deepfake ? 'text-red-400' : 'text-green-400';
-    const text = session.result_data.is_deepfake ? `Deepfake Detected (${confidence}%)` : `Authentic Media (${confidence}%)`;
+    if (session.status !== "completed" || !session.result_data) {
+      return <span className="text-gray-400">Analysis incomplete</span>;
+    }
     
-    return <span className={color}>{text}</span>;
+    const confidence = (session.result_data.final_confidence * 100).toFixed(1);
+    const isDeepfake = session.result_data.is_deepfake;
+    
+    return (
+      <span className={isDeepfake ? "text-red-400" : "text-green-400"}>
+        {isDeepfake ? "Deepfake Detected" : "Authentic Media"} ({confidence}%)
+      </span>
+    );
   };
-  
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
+    
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
+  };
+
   return (
     <Card
-      className="min-screen-h bg-neutral-940 border border-neutral-800/60 shadow-lg cursor-pointer hover:border-cyan-500 transition-all duration-200"
       onClick={() => router.push(`/report/${session.session_id}`)}
+      className="bg-gradient-to-br from-[#0f1114] to-[#0a0a0b] border border-white/5 hover:border-cyan-500/40 transition-all duration-300 cursor-pointer group"
     >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0  sm:p-6">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <div className="flex items-center gap-3">
-          {getStatusIcon()}
+          <div className="p-2 bg-cyan-500/10 rounded-lg">
+            <Icon className={`w-5 h-5 ${status.color} ${status.spin ? "animate-spin" : ""}`} />
+          </div>
           <div>
-            <CardTitle className="text-xl font-bold text-white hover:text-cyan-400 transition">
+            <CardTitle className="text-lg font-bold text-white group-hover:text-cyan-400 transition">
               Session #{session.session_id}
             </CardTitle>
-            <CardDescription className="text-sm text-gray-400">
+            <CardDescription className="text-sm mt-1">
               {getResultText()}
             </CardDescription>
           </div>
         </div>
-        <Badge
-          className={`text-xs font-semibold uppercase px-3 py-1 ${getStatusBadgeClass()}`}
-        >
+        <Badge className={`${status.badge} text-xs font-semibold uppercase px-3 py-1`}>
           {session.status}
         </Badge>
       </CardHeader>
-      <CardContent className="flex justify-between items-center text-xs text-gray-500 border-t border-neutral-800/60 p-4 sm:px-6 sm:py-3">
-        <span className="flex items-center gap-1">
-          <Clock className="w-3 h-3" />
-          Media Type: {session.media_type}
+      
+      <CardContent className="flex flex-wrap gap-4 text-xs text-gray-400 border-t border-white/5 pt-3">
+        <span className="flex items-center gap-1.5">
+          <FileType className="w-3.5 h-3.5" />
+          {session.media_type}
         </span>
-        <span className="flex items-center gap-1">
-          <Database className="w-3 h-3" />
-          Scanned: {new Date(session.created_at).toLocaleDateString()}
+        <span className="flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5" />
+          {formatDate(session.created_at)}
         </span>
+        {session.result_data && (
+          <span className="flex items-center gap-1.5 ml-auto">
+            <TrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-cyan-400 font-medium">
+              {(session.result_data.final_confidence * 100).toFixed(1)}% confidence
+            </span>
+          </span>
+        )}
       </CardContent>
     </Card>
   );
@@ -123,41 +140,55 @@ export default function HistoryPage() {
     fetchHistory();
   }, []);
 
+  // Loading State
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-cyan-400">
-        <Loader2 className="w-12 h-12 animate-spin mb-4" />
-        <p className="text-xl">Loading your session history...</p>
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <Loader2 className="w-12 h-12 text-cyan-400 animate-spin" />
+        <p className="text-gray-400 text-lg">Loading your session history...</p>
       </div>
     );
   }
 
+  // Error State
   if (error) {
     return (
-      <div className="text-center text-red-400 mt-10 p-4 border border-red-500/50 rounded-lg max-w-md mx-auto">
-        <AlertCircle className="w-6 h-6 inline-block mr-2" />
-        <p className="text-lg font-semibold">{error}</p>
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg max-w-md text-center">
+          <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-2" />
+          <p className="text-red-400 font-semibold">{error}</p>
+        </div>
       </div>
     );
   }
-  
-  // Main Render
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pt-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4 border-b border-white/10 pb-4">
-        <ListOrdered className="w-8 h-8 text-cyan-400" />
-        <h1 className="text-4xl font-extrabold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-          Scan History
-        </h1>
+      <div className="flex items-center gap-3 pb-6 border-b border-white/10">
+        <Database className="w-7 h-7 text-cyan-400" />
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 bg-clip-text text-transparent">
+            Scan History
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">
+            View all your deepfake detection scans
+          </p>
+        </div>
       </div>
 
       {/* History List or Empty State */}
       {history.length === 0 ? (
-        <div className="text-center text-gray-400 mt-10 p-10 border border-neutral-700 rounded-lg">
-          <Database className="w-10 h-10 mx-auto mb-4 text-neutral-500" />
-          <p className="text-xl font-semibold">No Scan Sessions Found</p>
-          <p className="text-md">Start a new scan to see your history here.</p>
+        <div className="text-center py-20 px-6">
+          <div className="inline-flex p-6 bg-gray-800/20 rounded-full mb-4">
+            <Database className="w-12 h-12 text-gray-600" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-300 mb-2">
+            No Scan Sessions Yet
+          </h3>
+          <p className="text-gray-500">
+            Start your first deepfake detection scan to see results here.
+          </p>
         </div>
       ) : (
         <div className="space-y-4">

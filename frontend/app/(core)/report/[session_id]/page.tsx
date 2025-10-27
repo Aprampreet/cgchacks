@@ -18,17 +18,28 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { getScanStatus } from "@/utlis/api";
 import VideoPreview from "@/comps/videoprv";
+
+const STATUS_STYLES = {
+  completed: (isFake: boolean) => 
+    isFake ? "bg-red-600" : "bg-green-600",
+  failed: () => "bg-red-800",
+  default: () => "bg-cyan-600 animate-pulse",
+};
+
+const getConfidenceColor = (value: number) => {
+  if (value > 0.8) return "from-red-500 to-rose-600";
+  if (value > 0.5) return "from-amber-400 to-orange-500";
+  return "from-emerald-400 to-green-500";
+};
 
 export default function ReportPage() {
   const params = useParams();
   const sessionId = Number(params.session_id);
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const POLLING_INTERVAL = 5000;
 
   const fetchStatus = async () => {
     if (!sessionId) return;
@@ -49,22 +60,27 @@ export default function ReportPage() {
   useEffect(() => {
     fetchStatus();
     const interval = setInterval(() => {
-      if (!session || ["pending", "processing"].includes(session.status)) fetchStatus();
-      else clearInterval(interval);
-    }, POLLING_INTERVAL);
+      if (session && !["completed", "failed"].includes(session.status)) {
+        fetchStatus();
+      }
+    }, 5000);
     return () => clearInterval(interval);
-  }, [sessionId, session]);
+  }, [sessionId, session?.status]);
 
-  if (loading)
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-cyan-400">
-        <Loader2 className="w-12 h-12 animate-spin mb-4" />
-        <p className="text-xl">Loading Session #{sessionId}...</p>
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <Loader2 className="w-12 h-12 text-cyan-400 animate-spin" />
+        <p className="text-gray-400 text-lg">Loading Session #{sessionId}...</p>
       </div>
     );
+  }
 
-  if (!session)
-    return <div className="text-center text-gray-400 mt-10">No session data found.</div>;
+  if (!session) {
+    return (
+      <div className="text-center text-gray-400 mt-10">No session data found.</div>
+    );
+  }
 
   const result = session.result_data || {};
   const isComplete = session.status === "completed";
@@ -72,99 +88,81 @@ export default function ReportPage() {
   const isFake = isComplete && result.is_deepfake;
   const confidence = isComplete ? (result.final_confidence * 100).toFixed(1) : "0.0";
 
-  const getColorClass = (value: number) => {
-    if (value > 0.8) return "from-red-500 to-rose-600 shadow-red-500/50";
-    if (value > 0.5) return "from-amber-400 to-orange-500 shadow-amber-500/50";
-    return "from-emerald-400 to-green-500 shadow-emerald-500/50";
-  };
+  const StatusIcon = isComplete
+    ? isFake ? XCircle : CheckCircle
+    : isFailed ? AlertCircle : Loader2;
+
+  const statusColor = isComplete
+    ? isFake ? "text-red-500" : "text-green-500"
+    : isFailed ? "text-red-500" : "text-cyan-400";
+
+  const badgeClass = STATUS_STYLES[session.status as keyof typeof STATUS_STYLES]?.(isFake) 
+    || STATUS_STYLES.default();
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pt-6">
-      <div className="flex items-center justify-between border-b border-white/10 pb-4">
-        <h1 className="text-4xl font-extrabold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-          Analysis Report #{sessionId}
-        </h1>
-        <Badge
-          className={`text-sm font-semibold uppercase px-4 py-2 ${
-            isComplete
-              ? isFake
-                ? "bg-gradient-to-r from-red-600 to-rose-700"
-                : "bg-gradient-to-r from-green-600 to-emerald-700"
-              : isFailed
-              ? "bg-gradient-to-r from-red-800 to-rose-900"
-              : "bg-gradient-to-r from-cyan-600 to-blue-700 animate-pulse"
-          }`}
-        >
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-6 border-b border-white/10">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 bg-clip-text text-transparent">
+            Analysis Report #{sessionId}
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">Deepfake detection results</p>
+        </div>
+        <Badge className={`${badgeClass} text-sm font-semibold uppercase px-4 py-2`}>
           {session.status}
         </Badge>
       </div>
 
-      <Card className="bg-neutral-940 border border-neutral-800/60 shadow-xl">
+      {/* Main Result Card */}
+      <Card className="bg-gradient-to-br from-[#0f1114] to-[#0a0a0b] border border-white/5">
         <CardHeader>
-          <CardTitle className="flex items-center gap-3 text-white">
-            {isComplete ? (
-              isFake ? (
-                <XCircle className="w-6 h-6 text-red-500" />
-              ) : (
-                <CheckCircle className="w-6 h-6 text-green-500" />
-              )
-            ) : isFailed ? (
-              <AlertCircle className="w-6 h-6 text-red-500" />
-            ) : (
-              <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-            )}
+          <CardTitle className="flex items-center gap-3 text-white text-xl">
+            <StatusIcon className={`w-6 h-6 ${statusColor} ${!isComplete && !isFailed ? 'animate-spin' : ''}`} />
             {isComplete
-              ? isFake
-                ? "Deepfake Detected"
-                : "Authentic Media"
-              : isFailed
-              ? "Analysis Failed"
-              : "Processing Deepfake Models"}
+              ? isFake ? "Deepfake Detected" : "Authentic Media"
+              : isFailed ? "Analysis Failed" : "Processing..."}
           </CardTitle>
           <CardDescription className="text-gray-400">
             {isComplete
-              ? "Final AI decision based on model output."
-              : isFailed
-              ? result.message
-              : `Session ${sessionId} is currently processing...`}
+              ? "Final AI decision based on model analysis"
+              : isFailed ? result.message : `Analyzing session ${sessionId}...`}
           </CardDescription>
         </CardHeader>
 
         {isComplete && (
           <CardContent className="space-y-8">
-            <div
-              className={`text-5xl font-black text-center tracking-tight ${
-                parseFloat(confidence) > 50 ? "text-red-400" : "text-green-400"
-              }`}
-            >
-              {confidence}% Fake Likelihood
+            {/* Confidence Score */}
+            <div className="text-center space-y-2">
+              <div className={`text-5xl font-bold ${parseFloat(confidence) > 50 ? "text-red-400" : "text-green-400"}`}>
+                {confidence}%
+              </div>
+              <p className="text-gray-400 text-sm">Deepfake Likelihood</p>
             </div>
 
+            {/* Model Scores */}
             {result.scores && (
               <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-gray-300 flex items-center gap-2">
-                  <GitFork className="w-5 h-5 text-cyan-400" /> Model Breakdown
+                <h3 className="text-lg font-semibold text-gray-200 flex items-center gap-2">
+                  <GitFork className="w-5 h-5 text-cyan-400" />
+                  Model Breakdown
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {Object.entries(result.scores).map(([key, value]) => {
                     const numVal = Number(value);
                     return (
                       <div
                         key={key}
-                        className="p-5 bg-neutral-800/60 rounded-xl border border-neutral-700/60 hover:border-cyan-700 transition"
+                        className="p-4 bg-white/5 rounded-lg border border-white/10 hover:border-cyan-500/40 transition"
                       >
-                        <p className="capitalize text-sm text-gray-400 mb-1">
+                        <p className="capitalize text-sm text-gray-400 mb-2">
                           {key.replace(/_/g, " ")}
                         </p>
-                        <div
-                          className={`relative h-2 w-full rounded-full bg-neutral-700 overflow-hidden`}
-                        >
+                        <div className="h-2 w-full rounded-full bg-gray-800 overflow-hidden">
                           <div
-                            className={`absolute inset-0 rounded-full bg-gradient-to-r ${getColorClass(
-                              numVal
-                            )} transition-all duration-700`}
+                            className={`h-full rounded-full bg-gradient-to-r ${getConfidenceColor(numVal)} transition-all duration-700`}
                             style={{ width: `${numVal * 100}%` }}
-                          ></div>
+                          />
                         </div>
                         <p className="text-lg font-bold mt-2 text-white">
                           {(numVal * 100).toFixed(1)}%
@@ -176,56 +174,54 @@ export default function ReportPage() {
               </div>
             )}
 
+            {/* Timeline Segments */}
             {(session.media_type === "video" || session.media_type === "audio") &&
-            result.temporal_data &&
-            result.temporal_data.length > 0 && (
-              <div className="space-y-3 mt-8">
-                <h3 className="text-xl font-semibold text-gray-300 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-cyan-400" /> Timeline Segments
-                </h3>
-
-                {/* 🎯 Confidence Segments */}
-                {result.temporal_data.map((seg: any, i: number) => (
-                  <div key={i} className="flex items-center space-x-4">
-                    <span className="text-sm font-mono text-gray-300 w-24">
-                      {seg.start}s – {seg.end}s
-                    </span>
-                    <div className="relative h-2 flex-1 rounded-full bg-neutral-700 overflow-hidden">
-                      <div
-                        className={`absolute inset-0 rounded-full bg-gradient-to-r ${getColorClass(
-                          seg.confidence
-                        )} transition-all duration-700`}
-                        style={{ width: `${seg.confidence * 100}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-semibold w-12 text-right text-white">
-                      {(seg.confidence * 100).toFixed(0)}%
-                    </span>
+              result.temporal_data?.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-200 flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-cyan-400" />
+                    Timeline Analysis
+                  </h3>
+                  <div className="space-y-3">
+                    {result.temporal_data.map((seg: any, i: number) => (
+                      <div key={i} className="flex items-center gap-4">
+                        <span className="text-sm font-mono text-gray-400 w-20">
+                          {seg.start}s-{seg.end}s
+                        </span>
+                        <div className="flex-1 h-2 rounded-full bg-gray-800 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full bg-gradient-to-r ${getConfidenceColor(seg.confidence)} transition-all duration-700`}
+                            style={{ width: `${seg.confidence * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-semibold w-12 text-right text-white">
+                          {(seg.confidence * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
 
-                {session.media_type === "video" && (
-                  <VideoPreview
-                    videoUrl={session.processed_media}
-                    temporalData={result.temporal_data}
-                  />
-                )}
-              </div>
-            )}
-
+                  {session.media_type === "video" && session.processed_media && (
+                    <VideoPreview
+                      videoUrl={session.processed_media}
+                      temporalData={result.temporal_data}
+                    />
+                  )}
+                </div>
+              )}
           </CardContent>
         )}
       </Card>
 
-      <div className="flex justify-between text-sm text-gray-500 pt-4">
-        <span className="flex items-center gap-1">
+      {/* Footer Info */}
+      <div className="flex flex-wrap gap-4 text-sm text-gray-400 pt-4 border-t border-white/10">
+        <span className="flex items-center gap-2">
           <Database className="w-4 h-4" />
-          Created:{" "}
-          {session.created_at
-            ? new Date(session.created_at).toLocaleString()
-            : "N/A"}
+          {session.created_at ? new Date(session.created_at).toLocaleString() : "N/A"}
         </span>
-        <span>Media Type: {session.media_type}</span>
+        <span className="ml-auto capitalize">
+          Media: {session.media_type}
+        </span>
       </div>
     </div>
   );
